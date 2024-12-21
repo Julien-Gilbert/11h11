@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>11h11</title>
+	<link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #000;
+            cursor: pointer;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background-color: white;
+            border: 2px solid black;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+		.popupPresentation {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background-color: white;
+            border: 2px solid black;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+		.popupPresentation button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .popupPresentation button:hover {
+            background-color: #0056b3;
+        }
+        .popup button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .popup button:hover {
+            background-color: #0056b3;
+        }
+        
+        #overlay {
+        display: none; /* Par défaut, l'overlay est masqué */
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5); /* Couleur semi-transparente */
+        backdrop-filter: blur(8px); /* Applique un flou */
+        z-index: 999; /* S'assure qu'il est derrière la popup */
+    }
+    </style>
+</head>
+<body>
+	 <div id="overlay"></div>
+    <div>
+		<img id="targetImage" alt="Image cible" />
+    </div>
+	
+	<div class="popupPresentation" id="popupPresentation">
+        <p>Bienvenue dans le super jeu</p>
+        <button onclick="closePopup()">C'est parti !</button>
+    </div>
+	
+	   <div class="popup" id="popup">
+        <p id="congratulationsMessage">Bravo !</p>
+    </div>
+	
+	<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        const radiusPercent = 10;  // Rayon en pourcentage (ex : 10% du plus petit côté)
+
+        const baseUrl = "http://api.labatailledutrain.fr:9000/api"
+		const apiUrl = baseUrl + "/dailyPictureMetadata";
+        const rankUrl = baseUrl + "/success";
+
+        const image = document.getElementById('targetImage');
+        const message = document.getElementById('message');
+
+        let targetXPercent = 0;
+        let targetYPercent = 0;
+        let characterName = "";
+        let rank = 0;
+
+        // Ajouter un événement de clic sur l'image
+        image.addEventListener('click', async function (event) {
+            // Obtenir les dimensions de l'image affichée
+            const rect = image.getBoundingClientRect();
+            const imageWidth = rect.width;
+            const imageHeight = rect.height;
+			
+			// Calculer les coordonnées absolues du centre cible et le rayon en pixels
+            const targetX = (targetXPercent / 100) * imageWidth;
+            const targetY = (targetYPercent / 100) * imageHeight;
+            const radius = (radiusPercent / 100) * Math.min(imageWidth, imageHeight);
+
+            // Calculer les coordonnées du clic relatif à l'image
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            // Calculer la distance entre le clic et le centre de la cible
+            const distance = Math.sqrt((clickX - targetX) ** 2 + (clickY - targetY) ** 2);
+
+            // Vérifier si le clic est dans la zone cible
+            if (distance <= radius) {
+                console.log("Succès");
+                await congratulationsMessage();
+				showPopup();
+            }
+        });
+		
+		 window.onload = async function() {
+            await fetchData();
+            showPresentationPopup();
+        };
+
+        async function fetchData() {
+            try {
+                const response = await fetch(apiUrl);
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP : ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                const targetImage = document.getElementById('targetImage');
+                targetImage.src = data.imageUrl;
+                targetImage.alt = 'Image récupérée avec succès';
+
+                targetXPercent = data.targetXPercent;
+                targetYPercent = data.targetYPercent;
+                characterName = data.name;
+
+                return data;
+            }
+            catch (error) {
+                console.error('Erreur lors de la récupération des données :', error);
+                document.getElementById('output').textContent = 'Erreur lors de la récupération des données.';
+            }
+
+        }
+
+        async function fetchRanking() {
+             try {
+                const response = await fetch(rankUrl);
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP : ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log(data);
+                rank = data.rank;
+            }
+            catch (error) {
+                console.error('Erreur lors de la récupération des données :', error);
+                document.getElementById('output').textContent = 'Erreur lors de la récupération des données.';
+            }
+        }
+
+        async function congratulationsMessage() {
+            console.log("congratulation message");
+            let rankString;
+            await fetchRanking();
+
+            console.log("Rank : " + rank);
+
+            if(rank == 1) {
+                rankString = "1ère";
+            }
+            else {
+                rankString = rank.toString() + "ème";
+            }
+
+            const congratulationsMessage = "Bravo ! Tu es la " + rankString + " personne à avoir cliqué sur le nez de " + characterName + " ! Rendez-vous demain à 11h11 pour un nouveau défi !"
+
+            console.log(congratulationsMessage);
+
+            document.getElementById("congratulationsMessage").innerText = congratulationsMessage;
+        }
+		
+		 // Afficher la popup de presentation du jeu
+        function showPresentationPopup() {
+            popupPresentation.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+		
+		 // Afficher la popup
+        function showPopup() {
+            console.log("Youpi");
+            popup.style.display = 'block';
+            //overlay.style.display = 'block';
+			launchFireworks();
+        }
+
+        // Fermer la popup
+        function closePopup() {
+            popup.style.display = 'none';
+			popupPresentation.style.display = 'none';
+            overlay.style.display = 'none';
+        }
+		
+		 // Fonction pour lancer les feux d'artifice
+        function launchFireworks() {
+            const duration = 2 * 1000; // Durée totale des feux d'artifice (2 secondes)
+            const end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: Math.random() * 360,
+                    spread: 70,
+                    origin: { x: Math.random(), y: Math.random() - 0.2 }
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            })();
+        }
+    </script>
+</body>
+</html>
